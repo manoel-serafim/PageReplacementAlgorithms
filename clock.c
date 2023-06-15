@@ -5,6 +5,7 @@
 #define NUM_ALG 3
 #define NUM_EXP 5
 
+// TODO - mudar o tamanho do vetor de acordo com o tamanho da memória virtual | 1gb em bytes= 1.073.741.824
 #define VM_size 100
 #define RM_size 50
 
@@ -15,82 +16,89 @@ typedef struct {
 	unsigned short real_page_frame;
 } pageType;
 
-// circular linked list
+#define MAX_SIZE 100
 
-typedef struct node {
+typedef struct {
     pageType page;
-    struct node *next;
+    int next;
 } node;
 
 typedef struct {
-    node *head;
-    node *tail;
+    node nodes[MAX_SIZE];
+    int head;
+    int tail;
 } list;
 
 void init_list(list *l) {
-    l->head = NULL;
-    l->tail = NULL;
+    l->head = -1;
+    l->tail = -1;
+    for (int i = 0; i < MAX_SIZE; i++) {
+        l->nodes[i].next = -1;
+    }
 }
 
 void insert(list *l, pageType page) {
-    node *new_node = (node*) malloc(sizeof(node));
-    new_node->page = page;
-    if (l->head == NULL) {
-        l->head = new_node;
-        l->tail = new_node;
-        new_node->next = new_node;
+    int index = 0;
+    if (l->head == -1) {
+        index = 0;
+        l->head = index;
+        l->tail = index;
     } else {
-        new_node->next = l->head;
-        l->tail->next = new_node;
-        l->tail = new_node;
+        index = (l->tail + 1) % MAX_SIZE;
+        l->nodes[l->tail].next = index;
+        l->tail = index;
     }
+    l->nodes[index].page = page;
+    l->nodes[index].next = l->head;
 }
 
-void remove_node(list *l, node *n) {
+void remove_node(list *l, int index) {
     if (l->head == l->tail) {
-        l->head = NULL;
-        l->tail = NULL;
+        l->head = -1;
+        l->tail = -1;
     } else {
-        node *aux = l->head;
-        while (aux->next != n) {
-            aux = aux->next;
+        int prev_index = l->head;
+        while (l->nodes[prev_index].next != index) {
+            prev_index = l->nodes[prev_index].next;
         }
-        aux->next = n->next;
-        if (n == l->head) {
-            l->head = n->next;
-        } else if (n == l->tail) {
-            l->tail = aux;
+        l->nodes[prev_index].next = l->nodes[index].next;
+        if (index == l->head) {
+            l->head = l->nodes[index].next;
+        } else if (index == l->tail) {
+            l->tail = prev_index;
         }
     }
-    free(n);
+    l->nodes[index].next = -1;
 }
 
 void print_list(list *l) {
-    node *aux = l->head;
-    if (aux != NULL) {
-        do {
-            printf("%d ", aux->page.real_page_frame);
-            aux = aux->next;
-        } while (aux != l->head);
+    if (l->head == -1) {
+        printf("List is empty\n");
+        return;
     }
+    int current_index = l->head;
+    do {
+        printf("%d ", l->nodes[current_index].page.real_page_frame);
+        current_index = l->nodes[current_index].next;
+    } while (current_index != l->head);
     printf("\n");
 }
 
 // end | circular linked list
 
-node* clock_hand;
+int clock_hand;
 
 void init_clock(list *l) {
     clock_hand = l->head;
 }
 
-pageType* get_page_to_replace() {
-    while (clock_hand->page.r) {
-        clock_hand->page.r = 0;
-        clock_hand = clock_hand->next;
+pageType* get_page_to_replace(list *l) {
+    while (l->nodes[clock_hand].page.r) {
+        l->nodes[clock_hand].page.r = 0;
+        clock_hand = l->nodes[clock_hand].next;
     }
-    pageType *page = &(clock_hand->page); 
-    clock_hand = clock_hand->next;
+    pageType *page = &(l->nodes[clock_hand].page); 
+    clock_hand = l->nodes[clock_hand].next;
     return page;
 }
 
@@ -113,15 +121,16 @@ void fill_page_list(list *l) {
 }
 
 pageType* search_page(list *l, int pag_virtual) {
-    node *current = l->head;
+    int current_index = l->head;
     do {
-        if (current->page.real_page_frame == pag_virtual) {
-            return &(current->page);
+        if (l->nodes[current_index].page.real_page_frame == pag_virtual) {
+            return &(l->nodes[current_index].page);
         }
-        current = current->next;
-    } while (current != l->head);
+        current_index = l->nodes[current_index].next;
+    } while (current_index != l->head);
     return NULL;
 }
+
 
 pageType* trap(int alg_replace, int virtual_page) {
     // CHAMAR O ALGORITMO DE CADA UM PARA FAZER REPLACE
