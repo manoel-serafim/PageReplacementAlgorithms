@@ -5,13 +5,13 @@
 #include <string.h>
 
 ///////////////////////// GENERIC /////////////////////////
-#define MAX_REP 100
+#define MAX_REP 25000
 #define NUM_ALG 3
 #define NUM_EXP 5
 
 // TODO - mudar o tamanho do vetor de acordo com o tamanho da memória virtual | 1gb em bytes= 1.073.741.824
-#define MV_SIZE 100
-#define MR_SIZE 50
+#define MV_SIZE 100000
+#define MR_SIZE 50000
 
 #define LFU 0
 #define CLOCK 1
@@ -21,8 +21,8 @@ typedef struct {
 	unsigned short present:1;
 	unsigned short r:1;
 	unsigned short m:1;
-	unsigned short real_page_frame:12;
-	unsigned short counter:8;
+	int real_page_frame;
+	int counter;
     int frequency;
     int next;
 } TPageType;
@@ -38,8 +38,8 @@ int randon_gen(int lower, int upper){
 	return(((rand() % (upper - lower + 1)) + lower));
 }
 
-void initialize_world(void) {
-    srand(1);
+void initialize_world(int seed) {
+    srand(seed);
     int virtualPage, realPage = 0;
     while (realPage < MR_SIZE) {
         virtualPage = randon_gen(0, MV_SIZE - 1);
@@ -77,41 +77,32 @@ void initialize_world(void) {
 //////////////////////////////////////////////////////////
 
 ///////////////////////// CLOCK /////////////////////////
-void insert(TPageType page) {
-    int index = 0;
-    if (head == -1) {
-        index = 0;
-        head = index;
-        tail = index;
-    } else {
-        index = (tail + 1) % MV_SIZE;
-        virtualMem[tail].next = index;
-        tail = index;
+
+int findClockPage(int startIndex) {
+    int index = startIndex;
+
+    while (true) {
+        if (virtualMem[index].r == 0) {
+            return index;
+        }
+
+        virtualMem[index].r = 0;
+        index = (index + 1) % MV_SIZE;
     }
-    virtualMem[index] = page;
-    virtualMem[index].next = head;
 }
 
-void clockReplace(int page_index) {
-    while (virtualMem[clock_hand].r) {
-        virtualMem[clock_hand].r = 0;
-        clock_hand = virtualMem[clock_hand].next;
-    }
-    TPageType *page = &(virtualMem[clock_hand]); 
-    
-    if (virtualMem[clock_hand].present == 1) {
-        virtualMem[clock_hand].present = 0;
-        virtualMem[clock_hand].r = 0;
-    }
-    virtualMem[clock_hand].real_page_frame = virtualMem[page_index].real_page_frame;
-    virtualMem[clock_hand].present = 1;
-    virtualMem[clock_hand].r = 1;
-    virtualMem[clock_hand].m = virtualMem[page_index].m;
+void clockReplace(int pageIndex) {
+    int clockIndex = findClockPage(pageIndex);
 
-    
-    clock_hand = virtualMem[clock_hand].next;
+    if (virtualMem[clockIndex].present == 1) {
+        virtualMem[clockIndex].present = 0;
+        virtualMem[clockIndex].r = 0;
+    }
 
-    insert(*page);
+    virtualMem[clockIndex].real_page_frame = virtualMem[pageIndex].real_page_frame;
+    virtualMem[clockIndex].present = 1;
+    virtualMem[clockIndex].r = 1;
+    virtualMem[clockIndex].m = virtualMem[pageIndex].m;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -131,12 +122,12 @@ int findLFUPage() {
 }
 
 void replacePageLFU(int pageIndex) {
-    unsigned short  lfuIndex = findLFUPage();
+    int lfuIndex = findLFUPage();
     int replacedPage = virtualMem[lfuIndex].real_page_frame;
 
-    int present = virtualMem[lfuIndex].real_page_frame;
-    int real_page_frame = virtualMem[lfuIndex].frequency;
-    int frequency = virtualMem[lfuIndex].present ;
+    int present = virtualMem[lfuIndex].present;
+    int real_page_frame = virtualMem[lfuIndex].real_page_frame;
+    int frequency = virtualMem[lfuIndex].frequency ;
 
     virtualMem[lfuIndex].real_page_frame = virtualMem[pageIndex].real_page_frame;
     virtualMem[lfuIndex].frequency = virtualMem[pageIndex].frequency;
@@ -149,7 +140,7 @@ void replacePageLFU(int pageIndex) {
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// AGING //////////////////////////////////
 
-short get_real_page(unsigned short virtual_page)
+int get_real_page(int virtual_page)
 {
 	if (virtualMem[virtual_page].present)
 	{
@@ -173,11 +164,11 @@ void aging(void){
 	}
 }
 
-unsigned short getAgingPage2Sub(void)
+int getAgingPage2Sub(void)
 {
 	int i = 0;
 	int smaller = -1;
-	unsigned short index_smaller;
+	int index_smaller;
 	while (i < MV_SIZE)
 	{
 		if ((virtualMem[i].present) && (smaller == -1))
@@ -195,10 +186,10 @@ unsigned short getAgingPage2Sub(void)
 	return (index_smaller);
 }
 
-unsigned short agingSub(unsigned short v_page)
+int agingSub(unsigned int v_page)
 {
-	unsigned short i = getAgingPage2Sub();
-	unsigned short new_page = virtualMem[i].real_page_frame;
+	int i = getAgingPage2Sub();
+	int new_page = virtualMem[i].real_page_frame;
 	virtualMem[i].present = 0;
 	virtualMem[i].r = 0;
 	virtualMem[i].m = 0;
@@ -213,7 +204,7 @@ unsigned short agingSub(unsigned short v_page)
 	return new_page;
 }
 
-void access_page(unsigned short real_page_frame, unsigned short virtual_page_frame, int access_type)
+void access_page(int real_page_frame, int virtual_page_frame, int access_type)
 {
 	if (virtualMem[virtual_page_frame].real_page_frame == real_page_frame)
 	{
@@ -245,17 +236,19 @@ int main(int argc, char *argv[]) {
     int new_page, lower, upper, real_page;
     int page_miss[NUM_ALG][NUM_EXP] = {0};
 
-    initialize_world();
-
+    initialize_world(2);
 
     for (int alg_replace = 0; alg_replace < NUM_ALG; alg_replace++) {
 
         for (int experiment = 1; experiment <= NUM_EXP; experiment++) {
             
             memcpy(virtualMem, bkp_virtual_mem, sizeof(bkp_virtual_mem));
+            head = -1;
+            tail = -1;
+            clock_hand = 0;
 
-            lower = (MV_SIZE/2) - experiment * 10;
-            upper = ((MV_SIZE/2) + experiment * 10) - 1;
+            lower = (MV_SIZE/2) - experiment * (MV_SIZE/10);
+            upper = ((MV_SIZE/2) + experiment * (MV_SIZE/10)) - 1;
             srand(experiment);
 
             for (int repeat_count = 0; repeat_count < MAX_REP; repeat_count++)  {
