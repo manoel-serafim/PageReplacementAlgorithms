@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-
+///////////////////////// GENERIC /////////////////////////
 #define MAX_REP 100
 #define NUM_ALG 3
 #define NUM_EXP 5
@@ -11,7 +11,6 @@
 // TODO - mudar o tamanho do vetor de acordo com o tamanho da memória virtual | 1gb em bytes= 1.073.741.824
 #define MV_SIZE 100
 #define MR_SIZE 50
-#define MAX_SIZE 100
 
 typedef struct {
 	unsigned short present:1;
@@ -27,81 +26,6 @@ TPageType virtualMem[MV_SIZE];
 int head;
 int tail;
 int clock_hand;
-
-void insert(TPageType page) {
-    int index = 0;
-    if (head == -1) {
-        index = 0;
-        head = index;
-        tail = index;
-    } else {
-        index = (tail + 1) % MAX_SIZE;
-        virtualMem[tail].next = index;
-        tail = index;
-    }
-    virtualMem[index] = page;
-    virtualMem[index].next = head;
-}
-
-void remove_node(int index) {
-    if (head == tail) {
-        head = -1;
-        tail = -1;
-    } else {
-        int prev_index = head;
-        while (virtualMem[prev_index].next != index) {
-            prev_index = virtualMem[prev_index].next;
-        }
-        virtualMem[prev_index].next = virtualMem[index].next;
-        if (index == head) {
-           head = virtualMem[index].next;
-        }
-        else if (index == tail) {
-            tail = prev_index; 
-        }
-    }
-    virtualMem[index].next = -1;
-}
-
-void print_list() {
-    if (head == -1) {
-        printf("List is empty\n");
-        return;
-    }
-    int current_index = head;
-    do {
-        printf("%d ", virtualMem[current_index].real_page_frame);
-        current_index = virtualMem[current_index].next;
-    } while (current_index != head);
-    
-    printf("\n");
-}
-
-void init_clock() {
-    clock_hand = head;
-}
-
-TPageType* get_page_to_replace(int page_index) {
-    while (virtualMem[clock_hand].r) {
-        virtualMem[clock_hand].r = 0;
-        clock_hand = virtualMem[clock_hand].next;
-    }
-    TPageType *page = &(virtualMem[clock_hand]); 
-    
-    if (virtualMem[clock_hand].present == 1) {
-        virtualMem[clock_hand].present = 0;
-        virtualMem[clock_hand].r = 0;
-    }
-    virtualMem[clock_hand].real_page_frame = virtualMem[page_index].real_page_frame;
-    virtualMem[clock_hand].present = 1;
-    virtualMem[clock_hand].r = 1;
-    virtualMem[clock_hand].m = virtualMem[page_index].m;
-
-    
-    clock_hand = virtualMem[clock_hand].next;
-    return page;
-}
-
 
 int randon_gen(int lower, int upper){
 	return(((rand() % (upper - lower + 1)) + lower));
@@ -141,6 +65,48 @@ void initialize_world(void) {
     clock_hand = 0;
 }
 
+//////////////////////////////////////////////////////////
+
+///////////////////////// CLOCK /////////////////////////
+void insert(TPageType page) {
+    int index = 0;
+    if (head == -1) {
+        index = 0;
+        head = index;
+        tail = index;
+    } else {
+        index = (tail + 1) % MV_SIZE;
+        virtualMem[tail].next = index;
+        tail = index;
+    }
+    virtualMem[index] = page;
+    virtualMem[index].next = head;
+}
+
+void clockReplace(int page_index) {
+    while (virtualMem[clock_hand].r) {
+        virtualMem[clock_hand].r = 0;
+        clock_hand = virtualMem[clock_hand].next;
+    }
+    TPageType *page = &(virtualMem[clock_hand]); 
+    
+    if (virtualMem[clock_hand].present == 1) {
+        virtualMem[clock_hand].present = 0;
+        virtualMem[clock_hand].r = 0;
+    }
+    virtualMem[clock_hand].real_page_frame = virtualMem[page_index].real_page_frame;
+    virtualMem[clock_hand].present = 1;
+    virtualMem[clock_hand].r = 1;
+    virtualMem[clock_hand].m = virtualMem[page_index].m;
+
+    
+    clock_hand = virtualMem[clock_hand].next;
+
+    insert(*page);
+}
+
+////////////////////////////////////////////////////////////////
+
 int main() {
     initialize_world();
 
@@ -164,7 +130,7 @@ int main() {
         // Se a página não está na memória real, ocorre uma falta de página
         if (!pageHit) {
             pageFaultsLFU++;
-            insert(*(get_page_to_replace(pageIndex)));
+            clockReplace(pageIndex);
         }
     }
 

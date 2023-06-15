@@ -3,30 +3,31 @@
 #include <stdbool.h>
 #include <time.h>
 
-#define MR_SIZE 128     // Tamanho da memória real
-#define MV_SIZE 1024    // Tamanho da memória virtual
-#define MS_SIZE (MV_SIZE - MR_SIZE)  // Tamanho da memória em disco (swap)
+#define MR_SIZE 50     // Tamanho da memória real
+#define MV_SIZE 100    // Tamanho da memória virtual
 
-// Estrutura para representar uma página
 typedef struct {
-    int pageNumber;
+    unsigned short present:1;
+    unsigned short r:1;
+    unsigned short m:1;
+    unsigned short real_page_frame:12;
+    unsigned short counter:8;
     int frequency;
-} Page;
+} TPageType;
 
-// Função para inicializar uma página
-void initializePage(Page* page, int pageNumber) {
-    page->pageNumber = pageNumber;
-    page->frequency = 0;
+TPageType virtualMem[MV_SIZE];
+
+int randon_gen(int lower, int upper) {
+    return (((rand() % (upper - lower + 1)) + lower));
 }
 
-// Função para encontrar a página menos frequentemente usada na memória real
-int findLFUPage(Page* mr) {
+int findLFUPage() {
     int lfuIndex = 0;
-    int minFrequency = mr[0].frequency;
+    int minFrequency = virtualMem[0].frequency;
 
-    for (int i = 1; i < MR_SIZE; i++) {
-        if (mr[i].frequency < minFrequency) {
-            minFrequency = mr[i].frequency;
+    for (int i = 1; i < MV_SIZE; i++) {
+        if (virtualMem[i].frequency < minFrequency && virtualMem[i].present == 1) {
+            minFrequency = virtualMem[i].frequency;
             lfuIndex = i;
         }
     }
@@ -34,48 +35,53 @@ int findLFUPage(Page* mr) {
     return lfuIndex;
 }
 
-// Função para substituir uma página na memória real usando o algoritmo LFU
-void replacePageLFU(Page* mr, Page* mv, Page* ms, int pageIndex, int* pageFaults) {
-    int lfuIndex = findLFUPage(mr);
-    int replacedPage = mr[lfuIndex].pageNumber;
+void replacePageLFU(int pageIndex) {
+    unsigned short  lfuIndex = findLFUPage();
+    int replacedPage = virtualMem[lfuIndex].real_page_frame;
 
-    mr[lfuIndex] = mv[pageIndex];
+    int present = virtualMem[lfuIndex].real_page_frame;
+    int real_page_frame = virtualMem[lfuIndex].frequency;
+    int frequency = virtualMem[lfuIndex].present ;
 
-    bool isPageInSwap = false;
-    for (int i = 0; i < MS_SIZE; i++) {
-        if (ms[i].pageNumber == replacedPage) {
-            isPageInSwap = true;
-            break;
-        }
-    }
+    virtualMem[lfuIndex].real_page_frame = virtualMem[pageIndex].real_page_frame;
+    virtualMem[lfuIndex].frequency = virtualMem[pageIndex].frequency;
+    virtualMem[lfuIndex].present = virtualMem[pageIndex].present;
 
-    if (isPageInSwap) {
-        (*pageFaults)++;
-    }
-
-    mv[pageIndex].pageNumber = -1;
+    virtualMem[pageIndex].real_page_frame = real_page_frame;
+    virtualMem[pageIndex].frequency = frequency;
+    virtualMem[pageIndex].present = present;
 }
 
-int main() {
-    srand(time(NULL));  // Inicializar o gerador de números aleatórios
-
-    Page mr[MR_SIZE];   // Memória real
-    Page mv[MV_SIZE];   // Memória virtual
-    Page ms[MS_SIZE];   // Memória em disco (swap)
-
-    // Inicializar as páginas da memória real e virtual
-    for (int i = 0; i < MR_SIZE; i++) {
-        initializePage(&mr[i], -1);
+void initialize_world(void) {
+    srand(3);
+    int virtualPage, realPage = 0;
+    while (realPage < MR_SIZE) {
+        virtualPage = randon_gen(0, MV_SIZE - 1);
+        while (virtualMem[virtualPage].present) {
+            virtualPage = randon_gen(0, MV_SIZE - 1);
+        }
+        virtualMem[virtualPage].present = 1;
+        virtualMem[virtualPage].r = randon_gen(0, 1);
+        virtualMem[virtualPage].m = randon_gen(0, 1);
+        virtualMem[virtualPage].real_page_frame = realPage;
+        virtualMem[virtualPage].frequency = 0;
+        realPage++;
     }
 
     for (int i = 0; i < MV_SIZE; i++) {
-        initializePage(&mv[i], i + 1);
+        if (virtualMem[i].present != 1) {
+            virtualMem[i].frequency = 0;
+            virtualMem[i].counter = 0;
+            virtualMem[i].present = 0;
+            virtualMem[i].real_page_frame = -1;
+            virtualMem[i].m = 0;
+            virtualMem[i].r = 0;
+        }
     }
+}
 
-    // Inicializar as páginas da memória em disco (swap)
-    for (int i = 0; i < MS_SIZE; i++) {
-        initializePage(&ms[i], -1);
-    }
+int main() {
+    initialize_world();
 
     int pageReferences = 1000;    // Número de referências de página
 
@@ -88,18 +94,16 @@ int main() {
 
         // Verificar se a página já está na memória real
         bool pageHit = false;
-        for (int j = 0; j < MR_SIZE; j++) {
-            if (mr[j].pageNumber == mv[pageIndex].pageNumber) {
-                pageHit = true;
-                mr[j].frequency++;
-                break;
-            }
+
+        if (virtualMem[pageIndex].present == 1) {
+            pageHit = true;
+            virtualMem[pageIndex].frequency++;
         }
 
         // Se a página não está na memória real, ocorre uma falta de página
         if (!pageHit) {
             pageFaultsLFU++;
-            replacePageLFU(mr, mv, ms, pageIndex, &pageFaultsLFU);
+            replacePageLFU(pageIndex);
         }
     }
 
