@@ -262,8 +262,12 @@ int main(int argc, char *argv[]) {
 
                 new_page = randon_gen(lower, upper);
 
-                if (alg_replace == AGING)
+                if (alg_replace == AGING) {
                     real_page = get_real_page(new_page);
+                    if ((repeat_count % 10) == 0)
+			            aging();
+		        }
+                
 
                 if (virtualMem[new_page].present == 0) {
                     
