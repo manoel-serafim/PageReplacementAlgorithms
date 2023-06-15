@@ -5,8 +5,8 @@
 // 100 000 000 acessos a memoria 100 000 um tick de relogio
 
 #define MAX_ACCESS 100
-#define MV_SIZE 100
-#define MR_SIZE 50
+#define VM_size 100
+#define RM_size 50
 
 
 typedef struct {
@@ -15,7 +15,7 @@ typedef struct {
 	unsigned short m:1;
 	unsigned short real_page_frame:12;
 	unsigned short counter:8;
-	int frequency;
+	unsigned short garbage:8;
 } TPageType;
 
 int randon_gen(int lower, int upper);
@@ -27,11 +27,10 @@ unsigned short get_page_to_sub(void);
 unsigned short page_sub(unsigned short v_page);
 void access_page(unsigned short real_page_frame, unsigned short virtual_page_frame, int access_type);
 
-TPageType virtualMem[MV_SIZE];
+TPageType virtualMem[VM_size];
 
 int main(void){
 	initialize_world();
-
 	int i = 0;
 	int page_miss = 0;
 	short v_page, r_page;
@@ -61,38 +60,26 @@ int randon_gen(int lower, int upper){
 	return(((rand() % (upper - lower + 1)) + lower));
 }
 
-void initialize_world(void) {
-    srand(3);
-    int virtualPage, realPage = 0;
-    while (realPage < MR_SIZE) {
-        virtualPage = randon_gen(0, MV_SIZE - 1);
-        while (virtualMem[virtualPage].present) {
-            virtualPage = randon_gen(0, MV_SIZE - 1);
-        }
-        virtualMem[virtualPage].present = 1;
-        virtualMem[virtualPage].r = randon_gen(0, 1);
-        virtualMem[virtualPage].m = randon_gen(0, 1);
-        virtualMem[virtualPage].real_page_frame = realPage;
-        virtualMem[virtualPage].frequency = 0;
-        realPage++;
-    }
-
-    for (int i = 0; i < MV_SIZE; i++) {
-        if (virtualMem[i].present != 1) {
-            virtualMem[i].frequency = 0;
-            virtualMem[i].counter = 0;
-            virtualMem[i].present = 0;
-            virtualMem[i].real_page_frame = -1;
-            virtualMem[i].m = 0;
-            virtualMem[i].r = 0;
-        }
-    }
+void initialize_world(void){
+	srand(3);
+	int virtualPage, realPage = 0;
+	while(realPage < RM_size){
+		virtualPage = randon_gen(0, 99);
+		while(virtualMem[virtualPage].present){
+			virtualPage = randon_gen(0, 99);
+		}
+		virtualMem[virtualPage].present = 1;
+		virtualMem[virtualPage].r = randon_gen(0, 1);
+		virtualMem[virtualPage].m = randon_gen(0, 1);
+		virtualMem[virtualPage].real_page_frame = realPage;
+		realPage++;
+	}
 }
 
 void print_vm(void){
 	int i = 0;
 	int cont = 0;
-	while(i < MV_SIZE){
+	while(i < VM_size){
 		if(virtualMem[i].present){
 			printf("virtual address: %d, r bit: %d, m bit: %d, real page frame: %d, counter: %d\n", i, virtualMem[i].r, virtualMem[i].m, virtualMem[i].real_page_frame, virtualMem[i].counter);
 			cont++;
@@ -128,7 +115,7 @@ short get_real_page(unsigned short virtual_page){
 
 void aging(void){
 	int i = 0;
-	while(i < MV_SIZE){
+	while(i < VM_size){
 		virtualMem[i].counter = virtualMem[i].counter >> 1;
 		if((virtualMem[i].r) && (virtualMem[i].present)){
 			virtualMem[i].counter = virtualMem[i].counter | 128;
@@ -142,7 +129,7 @@ unsigned short get_page_to_sub(void){
 	int i = 0;
 	int smaller = -1;
 	unsigned short index_smaller;
-	while(i < MV_SIZE){
+	while(i < VM_size){
 		if ((virtualMem[i].present) && (smaller == -1)){
 			smaller = virtualMem[i].counter;
 			index_smaller = i;
