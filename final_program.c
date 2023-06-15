@@ -236,7 +236,13 @@ int main(int argc, char *argv[]) {
     int new_page, lower, upper, real_page;
     int page_miss[NUM_ALG][NUM_EXP] = {0};
 
-    initialize_world(2);
+    if (argc != 2) {
+        printf("Invalid params.");
+    }
+
+    printf("SEED: %d\n\n", atoi(argv[1]));
+
+    initialize_world(atoi(argv[1]));
 
     for (int alg_replace = 0; alg_replace < NUM_ALG; alg_replace++) {
 
