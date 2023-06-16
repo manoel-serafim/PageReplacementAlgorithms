@@ -1,6 +1,6 @@
 # Page Replacement Algorithms
 
-This repository contains a project developed by a group of four individuals for a Systems Operating course at the Federal University of São Paulo, under the guidance of Professor Dr. Bruno Kimura.
+This repository contains a project developed by a group of four students for a Systems Operating course at the Federal University of São Paulo, under the guidance of Professor Dr. Bruno Kimura.
 
 ## Group Members
 
