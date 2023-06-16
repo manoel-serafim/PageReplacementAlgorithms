@@ -157,7 +157,7 @@ void aging(void){
 	while(i < MV_SIZE){
 		virtualMem[i].counter = virtualMem[i].counter >> 1;
 		if((virtualMem[i].r) && (virtualMem[i].present)){
-			virtualMem[i].counter = virtualMem[i].counter / 2;
+			virtualMem[i].counter = virtualMem[i].counter | 128;
 			virtualMem[i].r = 0;
 		}
 		i++;
@@ -176,7 +176,7 @@ int getAgingPage2Sub(void)
 			smaller = virtualMem[i].counter;
 			index_smaller = i;
 		}
-		else if ((virtualMem[i].present) && (smaller < virtualMem[i].counter))
+		else if ((virtualMem[i].present) && (smaller > virtualMem[i].counter))
 		{
 			smaller = virtualMem[i].counter;
 			index_smaller = i;
