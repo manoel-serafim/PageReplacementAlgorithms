@@ -51,7 +51,7 @@ To generate the comparison graphs, perform the following steps:
 2. Activate the virtual environment:
    - On Windows:
      ```
-     .\env\Scripts\activate
+     env\Scripts\activate
      ```
    - On Linux/macOS:
      ```
