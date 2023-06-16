@@ -4,10 +4,10 @@ This repository contains a project developed by a group of four students for a S
 
 ## Group Members
 
-- [Arthur Oliveira](https://github.com/Arthur-so)
-- Gabriel Augusto
-- [Manoel Serafim](https://github.com/manoel-serafim)
-- [Matheus Silva](https://github.com/matheuxito)
+- [**Arthur Oliveira**](https://github.com/Arthur-so)
+- **Gabriel Augusto**
+- [**Manoel Serafim**](https://github.com/manoel-serafim)
+- [**Matheus Silva**](https://github.com/matheuxito)
 
 ## Overview
 
