@@ -231,6 +231,28 @@ void printResult(int page_miss[NUM_ALG][NUM_EXP]) {
     }
 }
 
+// now i want to save my printResult into files
+void saveResult(int page_miss[NUM_ALG][NUM_EXP]) {
+    FILE *fp;
+    char filename[25];
+
+    for (int experiment = 1; experiment <= NUM_EXP; experiment++) {
+        sprintf(filename, "results/LFU_%dSD.txt", experiment * 10);
+        fp = fopen(filename, "a");
+        fprintf(fp, "%d\n", page_miss[0][experiment-1]);
+    }
+    for (int experiment = 1; experiment <=NUM_EXP; experiment++) {
+        sprintf(filename, "results/Clock_%dSD.txt", experiment * 10);
+        fp = fopen(filename, "a");
+        fprintf(fp, "%d\n", page_miss[1][experiment-1]);
+    }
+    for (int experiment = 1; experiment <= NUM_EXP; experiment++) {
+        sprintf(filename, "results/Aging_%dSD.txt", experiment * 10);
+        fp = fopen(filename, "a");
+        fprintf(fp, "%d\n", page_miss[2][experiment-1]);
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     int new_page, lower, upper, real_page;
@@ -296,6 +318,7 @@ int main(int argc, char *argv[]) {
     }
 
     printResult(page_miss);
+    saveResult(page_miss);
 
     return 0;
 }
